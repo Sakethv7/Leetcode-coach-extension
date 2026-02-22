@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "LeetCode Coach",
+  "version": "0.1.0",
+  "description": "Interactive LeetCode tutor that guides without spoon-feeding.",
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": [
+    "https://leetcode.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LeetCode Coach"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

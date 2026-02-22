@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LeetCode Coach</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>LeetCode Coach</h1>
+      <p class="muted">Interactive tutor mode: hints first, code later only if unlocked.</p>
+
+      <section class="card">
+        <label for="provider">Provider</label>
+        <select id="provider">
+          <option value="ollama">Ollama</option>
+          <option value="openai_compat">LM Studio / Open WebUI (OpenAI-compatible)</option>
+        </select>
+
+        <label for="endpoint">Endpoint</label>
+        <input id="endpoint" type="text" placeholder="http://127.0.0.1:11434" />
+
+        <label for="model">Model</label>
+        <input id="model" type="text" placeholder="qwen2.5-coder:7b" />
+
+        <button id="saveConfig">Save Config</button>
+      </section>
+
+      <section class="card">
+        <h2>Data & Privacy</h2>
+        <label class="toggle-row" for="autoExpiryEnabled">
+          <input id="autoExpiryEnabled" type="checkbox" />
+          Auto-delete coach data after N days
+        </label>
+
+        <label for="retentionDays">Retention days</label>
+        <input id="retentionDays" type="number" min="1" max="365" step="1" value="7" />
+
+        <div class="row">
+          <button id="savePrivacy">Save Privacy Settings</button>
+          <button id="clearData" class="danger">Clear All Coach Data</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <button id="capture">Capture Problem</button>
+          <span id="problemMeta" class="muted">No problem loaded</span>
+        </div>
+
+        <div class="quick-actions">
+          <button data-msg="Give me a small nudge, not the solution.">Nudge</button>
+          <button data-msg="Give me the next hint.">Next Hint</button>
+          <button data-msg="I will share my approach; critique it with one correction.">Review My Approach</button>
+        </div>
+
+        <textarea id="userInput" rows="4" placeholder="Ask for a hint, share your approach, or ask where you're stuck..."></textarea>
+        <div class="row">
+          <label class="unlock">
+            <input id="unlockCode" type="checkbox" />
+            I explicitly want full code now
+          </label>
+          <button id="send">Send</button>
+        </div>
+      </section>
+
+      <section class="card output">
+        <h2>Coach</h2>
+        <pre id="output">Start by opening a LeetCode problem tab, then click "Capture Problem".</pre>
+        <p id="stateMeta" class="muted"></p>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
