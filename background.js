@@ -1,7 +1,7 @@
 const DEFAULT_CONFIG = {
   provider: "ollama",
   endpoint: "http://127.0.0.1:11434",
-  model: "qwen2.5-coder:7b",
+  model: "kimi-k2:1t-cloud",
   temperature: 0.3,
   maxTokens: 700
 };
@@ -57,6 +57,8 @@ function sanitizeContext(context) {
     title: normalizeText(context?.title, 200),
     description: normalizeText(context?.description, MAX_FIELD_LEN),
     examples: normalizeText(context?.examples, MAX_FIELD_LEN),
+    code: normalizeText(context?.code, MAX_FIELD_LEN),
+    language: normalizeText(context?.language, 80),
     capturedAt: normalizeText(context?.capturedAt, 64)
   };
 }
@@ -134,6 +136,9 @@ function buildContextPrompt(context, state) {
   return [
     `Problem: ${context?.title || "Unknown"} (${context?.slug || "n/a"})`,
     `URL: ${context?.url || "n/a"}`,
+    `Language: ${context?.language || "Unknown"}`,
+    "Current Code:",
+    context?.code || "No code captured yet.",
     "Statement:",
     context?.description || "No description captured.",
     "Examples:",

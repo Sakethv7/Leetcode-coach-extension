@@ -18,7 +18,7 @@ Interactive LeetCode tutor extension that gives progressive hints and asks guidi
 - Ollama:
   - Provider: `ollama`
   - Endpoint: `http://localhost:11434`
-  - Model example: `qwen2.5-coder:7b`
+  - Model example: `kimi-k2:1t-cloud`
 - LM Studio or Open WebUI (OpenAI-compatible):
   - Provider: `openai_compat`
   - Endpoint example: `http://localhost:1234` or your Open WebUI local base URL

@@ -82,7 +82,7 @@ async function loadConfig() {
 
   providerEl.value = response.config.provider || "ollama";
   endpointEl.value = response.config.endpoint || "http://127.0.0.1:11434";
-  modelEl.value = response.config.model || "qwen2.5-coder:7b";
+  modelEl.value = response.config.model || "kimi-k2:1t-cloud";
 }
 
 function updateRetentionEnabled() {
