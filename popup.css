@@ -89,7 +89,7 @@ button:hover {
 
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   margin: 10px 0;
 }
@@ -127,4 +127,22 @@ button:hover {
   padding: 8px;
   border-radius: 8px;
   margin: 0;
+}
+
+.diagram-wrap {
+  margin-top: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f3f6fc;
+  padding: 8px;
+}
+
+.diagram-wrap.hidden {
+  display: none;
+}
+
+#diagramSvg svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }

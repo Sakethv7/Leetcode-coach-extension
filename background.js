@@ -121,14 +121,20 @@ function buildSystemPrompt() {
   return [
     "You are LeetCode Coach, a Socratic coding tutor.",
     "Never spoon-feed full solutions by default.",
+    "Default coding language is Python.",
     "Rules:",
     "1) Start by asking one short diagnostic question unless user explicitly asks for the next hint.",
-    "2) Give progressive hints: Hint 1 (intuition), Hint 2 (data structure), Hint 3 (algorithm sketch).",
-    "3) Do not provide full code unless unlockCode is true.",
-    "4) If unlockCode is false and user asks code/answer, refuse politely and provide a next-step hint.",
-    "5) Keep response concise: max 180 words.",
-    "6) Always end with one concrete question for the learner.",
-    "7) If user shares attempt, prioritize debugging their approach instead of replacing it."
+    "2) Use a gentle progression with labels: Concept refresh -> Hint 1 (intuition) -> Hint 2 (data structure) -> Hint 3 (algorithm sketch) -> Hint 4 (edge cases/complexity).",
+    "3) Keep each hint simple and concrete. Avoid jargon unless you define it in one short sentence.",
+    "4) If user seems confused/stuck, first give a 2-3 line prerequisite refresher before the next hint.",
+    "5) Prefer tiny examples over abstract explanations.",
+    "6) Do not provide full code unless unlockCode is true.",
+    "7) If unlockCode is false and user asks code/answer, refuse politely and provide a next-step hint.",
+    "8) If you provide any code, pseudocode, or syntax examples, use Python only.",
+    "9) Do not output C or C++ unless the user explicitly requests C or C++.",
+    "10) End with one easy next action the learner can try now.",
+    "11) Keep response concise: max 220 words.",
+    "12) If user shares attempt, prioritize debugging their approach instead of replacing it."
   ].join("\n");
 }
 
@@ -146,6 +152,70 @@ function buildContextPrompt(context, state) {
     `HintsGivenSoFar: ${state?.hintsGiven || 0}`,
     `CodeUnlocked: ${Boolean(state?.unlockCode)}`
   ].join("\n\n");
+}
+
+function buildVisualSystemPrompt() {
+  return [
+    "You are LeetCode Coach visual planner.",
+    "Return ONLY valid JSON with no markdown.",
+    'Schema: {"type":"array_pointers","title":"string","array":[number,...],"low":number|null,"high":number|null,"mid":number|null,"note":"string"}',
+    "Rules:",
+    "1) type must always be array_pointers.",
+    "2) array length must be 3..12.",
+    "3) low/high/mid are zero-based indices inside array bounds, or null if unknown.",
+    "4) Keep note under 140 characters.",
+    "5) Prefer integers for array values."
+  ].join("\n");
+}
+
+function extractJsonObject(text) {
+  const raw = String(text || "").trim();
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (_error) {}
+
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    try {
+      return JSON.parse(raw.slice(start, end + 1));
+    } catch (_error) {}
+  }
+  return null;
+}
+
+function normalizeVisualSpec(specLike) {
+  const fallbackArray = [1, 3, 5, 7, 9];
+  const arrRaw = Array.isArray(specLike?.array) ? specLike.array : fallbackArray;
+  const array = arrRaw
+    .map((n) => Number(n))
+    .filter((n) => Number.isFinite(n))
+    .slice(0, 12);
+  const safeArray = array.length >= 3 ? array : fallbackArray;
+
+  function normalizeIndex(value) {
+    if (value === null || value === undefined || value === "") {
+      return null;
+    }
+    const idx = Math.round(Number(value));
+    if (!Number.isFinite(idx)) {
+      return null;
+    }
+    return idx >= 0 && idx < safeArray.length ? idx : null;
+  }
+
+  return {
+    type: "array_pointers",
+    title: normalizeText(specLike?.title || "Array pointer walkthrough", 80),
+    array: safeArray,
+    low: normalizeIndex(specLike?.low),
+    high: normalizeIndex(specLike?.high),
+    mid: normalizeIndex(specLike?.mid),
+    note: normalizeText(specLike?.note || "Track low/high boundaries and midpoint each step.", 160)
+  };
 }
 
 function inferHintIncrement(userMessage) {
@@ -258,6 +328,36 @@ async function runCoach(payload) {
   };
 }
 
+async function runVisual(payload) {
+  const stored = await getStore(["lc_coach_config"]);
+  const config = sanitizeConfig(stored.lc_coach_config);
+  const context = sanitizeContext(payload?.context || {});
+  const userMessage = normalizeText(payload?.userMessage, MAX_USER_MESSAGE_LEN);
+
+  const messages = [
+    { role: "system", content: buildVisualSystemPrompt() },
+    {
+      role: "user",
+      content: [
+        `Problem: ${context?.title || "Unknown"} (${context?.slug || "n/a"})`,
+        `Statement: ${context?.description || "No description captured."}`,
+        `Examples: ${context?.examples || "No examples captured."}`,
+        `Code: ${context?.code || "No code captured."}`,
+        `Request: ${userMessage || "Generate a useful array-pointer diagram for this problem."}`
+      ].join("\n\n")
+    }
+  ];
+
+  const modelOutput =
+    config.provider === "ollama"
+      ? await callOllama(config, messages)
+      : await callOpenAICompat(config, messages);
+  const parsed = extractJsonObject(modelOutput);
+  const spec = normalizeVisualSpec(parsed || {});
+
+  return { spec, raw: modelOutput, config };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   const sender = _sender;
 
@@ -268,6 +368,18 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     runCoach(message.payload)
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: String(error) }));
+    return true;
+  }
+
+  if (message?.type === "LC_COACH_VISUAL") {
+    if (!isTrustedChatSender(sender)) {
+      sendResponse({ ok: false, error: "Blocked untrusted message sender." });
+      return false;
+    }
+
+    runVisual(message.payload)
       .then((result) => sendResponse({ ok: true, result }))
       .catch((error) => sendResponse({ ok: false, error: String(error) }));
     return true;

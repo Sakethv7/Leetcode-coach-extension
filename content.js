@@ -86,6 +86,64 @@ function getDisplayedLanguage() {
   return label.trim();
 }
 
+function escapeXml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function renderArrayPointerSvg(spec) {
+  const array = Array.isArray(spec?.array) ? spec.array : [];
+  const count = Math.max(3, Math.min(12, array.length || 5));
+  const values = (array.length ? array : [1, 3, 5, 7, 9]).slice(0, count);
+  const width = Math.max(340, count * 60 + 24);
+  const height = 220;
+  const top = 88;
+  const startX = 12;
+  const boxW = 48;
+
+  function cellCenter(i) {
+    return startX + i * 60 + boxW / 2;
+  }
+
+  function pointerGroup(label, idx, color, yTop) {
+    if (idx === null || idx === undefined || idx < 0 || idx >= values.length) {
+      return "";
+    }
+    const x = cellCenter(idx);
+    return [
+      `<line x1="${x}" y1="${yTop}" x2="${x}" y2="${top - 12}" stroke="${color}" stroke-width="2"/>`,
+      `<text x="${x}" y="${yTop - 6}" text-anchor="middle" font-size="12" fill="${color}" font-weight="700">${escapeXml(label)}=${idx}</text>`
+    ].join("");
+  }
+
+  const cells = values
+    .map((value, i) => {
+      const x = startX + i * 60;
+      const center = x + boxW / 2;
+      return [
+        `<rect x="${x}" y="${top}" width="${boxW}" height="42" rx="6" fill="#0f1c35" stroke="#304c7b"/>`,
+        `<text x="${center}" y="${top + 26}" text-anchor="middle" font-size="14" fill="#ecf1ff">${escapeXml(value)}</text>`,
+        `<text x="${center}" y="${top + 58}" text-anchor="middle" font-size="11" fill="#9eb0dc">${i}</text>`
+      ].join("");
+    })
+    .join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Array pointer diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Array pointer walkthrough")}</text>
+      ${cells}
+      ${pointerGroup("low", spec?.low, "#6ee7b7", 36)}
+      ${pointerGroup("mid", spec?.mid, "#fbbf24", 54)}
+      ${pointerGroup("high", spec?.high, "#f87171", 72)}
+    </svg>
+  `;
+}
+
 async function getProblemContext() {
   const slugMatch = window.location.pathname.match(/\/problems\/([^/]+)/);
   const slug = slugMatch ? slugMatch[1] : "unknown-problem";
@@ -206,6 +264,9 @@ function createCoachWidget() {
         font-size: 11px;
         padding: 5px 9px;
       }
+      .quick .visual {
+        background: #203a68;
+      }
       textarea {
         width: 100%;
         min-height: 70px;
@@ -239,6 +300,22 @@ function createCoachWidget() {
         padding: 9px;
         max-height: 240px;
         overflow: auto;
+      }
+      .diagram-wrap {
+        background: #0d192f;
+        border: 1px solid #253a69;
+        border-radius: 8px;
+        padding: 8px;
+      }
+      .diagram-wrap svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .diagram-note {
+        margin-top: 6px;
+        font-size: 11px;
+        color: #9eb0dc;
       }
       .muted {
         color: #9eb0dc;
@@ -306,10 +383,15 @@ function createCoachWidget() {
           <button data-msg="Give me a small nudge.">Nudge</button>
           <button data-msg="Give me the next hint.">Next hint</button>
           <button data-msg="Check my approach:">Debug idea</button>
+          <button id="visualBtn" class="visual">Visual</button>
         </div>
         <textarea id="input" placeholder="Ask for help or paste your approach..."></textarea>
         <button id="send" class="send">Send</button>
         <div id="output" class="output muted">Ask for a hint to start.</div>
+        <div id="diagramWrap" class="diagram-wrap hidden">
+          <div id="diagramSvg"></div>
+          <div id="diagramNote" class="diagram-note"></div>
+        </div>
       </div>
     </div>
     <div id="liveTip" class="live hidden">
@@ -328,6 +410,10 @@ function createCoachWidget() {
   const outputEl = shadow.getElementById("output");
   const sendBtn = shadow.getElementById("send");
   const minBtn = shadow.getElementById("min");
+  const visualBtn = shadow.getElementById("visualBtn");
+  const diagramWrapEl = shadow.getElementById("diagramWrap");
+  const diagramSvgEl = shadow.getElementById("diagramSvg");
+  const diagramNoteEl = shadow.getElementById("diagramNote");
   const liveTipEl = shadow.getElementById("liveTip");
   const liveTextEl = shadow.getElementById("liveText");
   const liveToggleEl = shadow.getElementById("liveToggle");
@@ -363,6 +449,32 @@ function createCoachWidget() {
     } catch (error) {
       outputEl.classList.add("muted");
       outputEl.textContent = `Error: ${String(error)}`;
+    }
+  }
+
+  async function sendVisual(message) {
+    diagramWrapEl.classList.remove("hidden");
+    diagramNoteEl.textContent = "Generating visual...";
+    diagramSvgEl.textContent = "";
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "LC_COACH_VISUAL",
+        payload: {
+          context: await getProblemContext(),
+          userMessage: (message || "").trim() || "Explain this problem visually."
+        }
+      });
+
+      if (!response?.ok) {
+        throw new Error(response?.error || "Visual request failed.");
+      }
+
+      const spec = response.result?.spec || {};
+      diagramSvgEl.innerHTML = renderArrayPointerSvg(spec);
+      diagramNoteEl.textContent = spec.note || "Visual guide ready.";
+    } catch (error) {
+      diagramNoteEl.textContent = `Visual error: ${String(error)}`;
     }
   }
 
@@ -434,6 +546,10 @@ function createCoachWidget() {
 
   sendBtn.addEventListener("click", () => {
     sendMessage(inputEl.value);
+  });
+
+  visualBtn.addEventListener("click", () => {
+    sendVisual(inputEl.value);
   });
 
   inputEl.addEventListener("keydown", (event) => {

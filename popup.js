@@ -13,6 +13,10 @@ const userInputEl = document.getElementById("userInput");
 const unlockCodeEl = document.getElementById("unlockCode");
 const problemMetaEl = document.getElementById("problemMeta");
 const stateMetaEl = document.getElementById("stateMeta");
+const visualizeEl = document.getElementById("visualize");
+const diagramWrapEl = document.getElementById("diagramWrap");
+const diagramMetaEl = document.getElementById("diagramMeta");
+const diagramSvgEl = document.getElementById("diagramSvg");
 
 let cachedContext = null;
 
@@ -26,6 +30,64 @@ function setStateMeta(state) {
     return;
   }
   stateMetaEl.textContent = `Hints used: ${state.hintsGiven || 0} | Code unlocked: ${Boolean(state.unlockCode)}`;
+}
+
+function escapeXml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+}
+
+function renderArrayPointerSvg(spec) {
+  const array = Array.isArray(spec?.array) ? spec.array : [];
+  const count = Math.max(3, Math.min(12, array.length || 5));
+  const values = (array.length ? array : [1, 3, 5, 7, 9]).slice(0, count);
+  const width = Math.max(360, count * 64 + 24);
+  const height = 220;
+  const top = 88;
+  const startX = 12;
+  const boxW = 52;
+
+  function cellCenter(i) {
+    return startX + i * 64 + boxW / 2;
+  }
+
+  function pointerGroup(label, idx, color, yTop) {
+    if (idx === null || idx === undefined || idx < 0 || idx >= values.length) {
+      return "";
+    }
+    const x = cellCenter(idx);
+    return [
+      `<line x1="${x}" y1="${yTop}" x2="${x}" y2="${top - 12}" stroke="${color}" stroke-width="2"/>`,
+      `<text x="${x}" y="${yTop - 6}" text-anchor="middle" font-size="12" fill="${color}" font-weight="700">${escapeXml(label)}=${idx}</text>`
+    ].join("");
+  }
+
+  const cells = values
+    .map((value, i) => {
+      const x = startX + i * 64;
+      const center = x + boxW / 2;
+      return [
+        `<rect x="${x}" y="${top}" width="${boxW}" height="42" rx="6" fill="#0f1c35" stroke="#304c7b"/>`,
+        `<text x="${center}" y="${top + 26}" text-anchor="middle" font-size="14" fill="#ecf1ff">${escapeXml(value)}</text>`,
+        `<text x="${center}" y="${top + 58}" text-anchor="middle" font-size="11" fill="#9eb0dc">${i}</text>`
+      ].join("");
+    })
+    .join("");
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Array pointer diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Array pointer walkthrough")}</text>
+      ${cells}
+      ${pointerGroup("low", spec?.low, "#6ee7b7", 36)}
+      ${pointerGroup("mid", spec?.mid, "#fbbf24", 54)}
+      ${pointerGroup("high", spec?.high, "#f87171", 72)}
+    </svg>
+  `;
 }
 
 async function getActiveLeetCodeTab() {
@@ -72,6 +134,32 @@ async function sendToCoach(userMessage) {
 
   setOutput(response.result.text || "No response.");
   setStateMeta(response.result.state);
+}
+
+async function sendVisualRequest() {
+  if (!cachedContext) {
+    await captureContext();
+  }
+
+  diagramWrapEl.classList.remove("hidden");
+  diagramMetaEl.textContent = "Generating visual...";
+  diagramSvgEl.textContent = "";
+
+  const response = await chrome.runtime.sendMessage({
+    type: "LC_COACH_VISUAL",
+    payload: {
+      context: cachedContext,
+      userMessage: userInputEl.value.trim() || "Explain this problem visually."
+    }
+  });
+
+  if (!response?.ok) {
+    throw new Error(response?.error || "Visual generation failed.");
+  }
+
+  const spec = response.result?.spec || {};
+  diagramSvgEl.innerHTML = renderArrayPointerSvg(spec);
+  diagramMetaEl.textContent = spec.note || "Visual guide ready.";
 }
 
 async function loadConfig() {
@@ -161,6 +249,10 @@ captureEl.addEventListener("click", () => {
 sendEl.addEventListener("click", () => {
   const message = userInputEl.value.trim() || "Give me the first hint.";
   sendToCoach(message).catch((error) => setOutput(String(error)));
+});
+
+visualizeEl.addEventListener("click", () => {
+  sendVisualRequest().catch((error) => setOutput(String(error)));
 });
 
 document.querySelectorAll("button[data-msg]").forEach((button) => {

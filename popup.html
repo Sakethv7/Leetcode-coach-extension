@@ -53,6 +53,7 @@
           <button data-msg="Give me a small nudge, not the solution.">Nudge</button>
           <button data-msg="Give me the next hint.">Next Hint</button>
           <button data-msg="I will share my approach; critique it with one correction.">Review My Approach</button>
+          <button id="visualize">Generate Visual</button>
         </div>
 
         <textarea id="userInput" rows="4" placeholder="Ask for a hint, share your approach, or ask where you're stuck..."></textarea>
@@ -69,6 +70,10 @@
         <h2>Coach</h2>
         <pre id="output">Start by opening a LeetCode problem tab, then click "Capture Problem".</pre>
         <p id="stateMeta" class="muted"></p>
+        <div id="diagramWrap" class="diagram-wrap hidden">
+          <div id="diagramMeta" class="muted"></div>
+          <div id="diagramSvg"></div>
+        </div>
       </section>
     </main>
 
