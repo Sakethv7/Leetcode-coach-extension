@@ -12,6 +12,14 @@ body {
 
 main {
   padding: 12px;
+  position: relative;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 h1 {
@@ -22,6 +30,11 @@ h1 {
 h2 {
   margin: 0 0 8px;
   font-size: 14px;
+}
+
+h3 {
+  margin: 0;
+  font-size: 15px;
 }
 
 .card {
@@ -60,6 +73,14 @@ button {
 
 button:hover {
   filter: brightness(1.08);
+}
+
+.ghost-btn {
+  width: auto;
+  background: #f1f5fb;
+  color: #1f3655;
+  border: 1px solid #c9d5e6;
+  padding: 6px 10px;
 }
 
 .row {
@@ -145,4 +166,50 @@ button:hover {
   width: 100%;
   height: auto;
   display: block;
+}
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 18, 32, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.tutorial-overlay.hidden {
+  display: none;
+}
+
+.tutorial-card {
+  width: min(380px, calc(100vw - 24px));
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+}
+
+.tutorial-step {
+  margin: 0;
+  color: #55627a;
+  font-size: 12px;
+}
+
+.tutorial-body {
+  margin: 8px 0 0;
+  color: #22324a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tutorial-actions button {
+  width: auto;
 }

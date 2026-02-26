@@ -1,6 +1,7 @@
 const providerEl = document.getElementById("provider");
 const endpointEl = document.getElementById("endpoint");
 const modelEl = document.getElementById("model");
+const traceEndpointEl = document.getElementById("traceEndpoint");
 const saveConfigEl = document.getElementById("saveConfig");
 const autoExpiryEnabledEl = document.getElementById("autoExpiryEnabled");
 const retentionDaysEl = document.getElementById("retentionDays");
@@ -17,8 +18,86 @@ const visualizeEl = document.getElementById("visualize");
 const diagramWrapEl = document.getElementById("diagramWrap");
 const diagramMetaEl = document.getElementById("diagramMeta");
 const diagramSvgEl = document.getElementById("diagramSvg");
+const diagramPrevEl = document.getElementById("diagramPrev");
+const diagramPlayEl = document.getElementById("diagramPlay");
+const diagramNextEl = document.getElementById("diagramNext");
+const openTutorialEl = document.getElementById("openTutorial");
+const tutorialOverlayEl = document.getElementById("tutorialOverlay");
+const tutorialStepMetaEl = document.getElementById("tutorialStepMeta");
+const tutorialTitleEl = document.getElementById("tutorialTitle");
+const tutorialBodyEl = document.getElementById("tutorialBody");
+const tutorialBackEl = document.getElementById("tutorialBack");
+const tutorialNextEl = document.getElementById("tutorialNext");
+const tutorialCloseEl = document.getElementById("tutorialClose");
 
 let cachedContext = null;
+let currentTimeline = null;
+let currentStepIndex = 0;
+let playTimer = null;
+
+const tutorialSteps = [
+  {
+    title: "Welcome",
+    body: "This tutorial shows the core flow: configure model, capture problem, ask hints, and replay algorithm states."
+  },
+  {
+    title: "Save Config",
+    body: "Set Provider, Endpoint, Model, and optionally Python Trace Endpoint. Then click Save Config."
+  },
+  {
+    title: "Capture Problem",
+    body: "Open a LeetCode problem tab, then click Capture Problem so Wandering_bot can read title, statement, examples, and code."
+  },
+  {
+    title: "Ask For Help",
+    body: "Use Nudge, Next Hint, or type your own question in the textbox and click Send for strategic guidance."
+  },
+  {
+    title: "Generate Replay",
+    body: "Click Generate Replay. Use Prev, Next, and Play to inspect each algorithm state transition."
+  },
+  {
+    title: "Done",
+    body: "You can reopen this tutorial anytime from the Tutorial button near the title."
+  }
+];
+let tutorialIndex = 0;
+
+function renderTutorialStep() {
+  const step = tutorialSteps[tutorialIndex];
+  tutorialStepMetaEl.textContent = "Step " + String(tutorialIndex + 1) + "/" + String(tutorialSteps.length);
+  tutorialTitleEl.textContent = step.title;
+  tutorialBodyEl.textContent = step.body;
+  tutorialBackEl.disabled = tutorialIndex === 0;
+  tutorialNextEl.textContent = tutorialIndex >= tutorialSteps.length - 1 ? "Finish" : "Next";
+}
+
+function openTutorial() {
+  tutorialIndex = 0;
+  renderTutorialStep();
+  tutorialOverlayEl.classList.remove("hidden");
+}
+
+function closeTutorial() {
+  tutorialOverlayEl.classList.add("hidden");
+}
+
+function nextTutorialStep() {
+  if (tutorialIndex >= tutorialSteps.length - 1) {
+    closeTutorial();
+    return;
+  }
+  tutorialIndex += 1;
+  renderTutorialStep();
+}
+
+function prevTutorialStep() {
+  if (tutorialIndex <= 0) {
+    return;
+  }
+  tutorialIndex -= 1;
+  renderTutorialStep();
+}
 
 function setOutput(text) {
   outputEl.textContent = text;
@@ -81,13 +160,186 @@ function renderArrayPointerSvg(spec) {
   return `
     <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Array pointer diagram">
       <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
-      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Array pointer walkthrough")}</text>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Array pointer replay")}</text>
       ${cells}
       ${pointerGroup("low", spec?.low, "#6ee7b7", 36)}
       ${pointerGroup("mid", spec?.mid, "#fbbf24", 54)}
       ${pointerGroup("high", spec?.high, "#f87171", 72)}
     </svg>
   `;
+}
+
+function renderLinkedListSvg(spec) {
+  const nodes = Array.isArray(spec?.nodes) ? spec.nodes.slice(0, 10) : [1, 2, 3, 4];
+  const width = Math.max(360, nodes.length * 78 + 20);
+  const height = 200;
+  const y = 90;
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Linked list diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Linked list replay")}</text>
+      ${nodes
+        .map((value, i) => {
+          const x = 12 + i * 78;
+          const markers = [spec?.head === i ? "H" : "", spec?.current === i ? "C" : "", spec?.slow === i ? "S" : "", spec?.fast === i ? "F" : ""]
+            .filter(Boolean)
+            .join("/");
+          return [
+            `<rect x="${x}" y="${y}" width="52" height="34" rx="6" fill="#0f1c35" stroke="#3c5c94"/>`,
+            `<text x="${x + 26}" y="${y + 22}" text-anchor="middle" font-size="13" fill="#ecf1ff">${escapeXml(value)}</text>`,
+            i < nodes.length - 1
+              ? `<line x1="${x + 52}" y1="${y + 17}" x2="${x + 72}" y2="${y + 17}" stroke="#6a86bf" stroke-width="2"/><polygon points="${x + 72},${y + 17} ${x + 66},${y + 13} ${x + 66},${y + 21}" fill="#6a86bf"/>`
+              : "",
+            `<text x="${x + 26}" y="${y + 52}" text-anchor="middle" font-size="10" fill="#9eb0dc">${i}</text>`,
+            markers ? `<text x="${x + 26}" y="${y - 8}" text-anchor="middle" font-size="10" fill="#fbbf24">${markers}</text>` : ""
+          ].join("");
+        })
+        .join("")}
+    </svg>
+  `;
+}
+
+function renderStackQueueSvg(spec) {
+  const items = Array.isArray(spec?.items) ? spec.items.slice(0, 12) : [1, 2, 3];
+  const mode = spec?.mode === "queue" ? "queue" : "stack";
+  return `
+    <svg viewBox="0 0 420 230" role="img" aria-label="Stack or queue diagram">
+      <rect x="0" y="0" width="420" height="230" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Stack/Queue replay")} (${mode})</text>
+      ${items
+        .map((value, i) => {
+          const x = 18 + i * 32;
+          const active = spec?.active === i;
+          return [
+            `<rect x="${x}" y="92" width="28" height="90" rx="5" fill="${active ? "#2a4e89" : "#10203b"}" stroke="#3f629d"/>`,
+            `<text x="${x + 14}" y="145" text-anchor="middle" font-size="12" fill="#ecf1ff">${escapeXml(value)}</text>`
+          ].join("");
+        })
+        .join("")}
+      <text x="20" y="74" font-size="11" fill="#9eb0dc">${mode === "stack" ? "Top on right" : "Front on left"}</text>
+    </svg>
+  `;
+}
+
+function renderGraphBfsSvg(spec) {
+  const nodes = Array.isArray(spec?.nodes) ? spec.nodes.slice(0, 8) : ["A", "B", "C", "D"];
+  const cx = 150;
+  const cy = 130;
+  const radius = 72;
+  const pos = new Map(
+    nodes.map((node, i) => {
+      const a = (Math.PI * 2 * i) / Math.max(1, nodes.length);
+      return [String(node), { x: cx + radius * Math.cos(a), y: cy + radius * Math.sin(a) }];
+    })
+  );
+  const visited = new Set(Array.isArray(spec?.visited) ? spec.visited.map(String) : []);
+  const edges = Array.isArray(spec?.edges) ? spec.edges : [];
+  const queueText = Array.isArray(spec?.queue) ? spec.queue.join(" -> ") : "";
+
+  return `
+    <svg viewBox="0 0 440 250" role="img" aria-label="Graph BFS diagram">
+      <rect x="0" y="0" width="440" height="250" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Graph BFS replay")}</text>
+      ${edges
+        .map((edge) => {
+          if (!Array.isArray(edge) || edge.length < 2) return "";
+          const a = pos.get(String(edge[0]));
+          const b = pos.get(String(edge[1]));
+          if (!a || !b) return "";
+          return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#3e5f98" stroke-width="2"/>`;
+        })
+        .join("")}
+      ${nodes
+        .map((node) => {
+          const p = pos.get(String(node));
+          if (!p) return "";
+          const isCurrent = String(spec?.current || "") === String(node);
+          const isVisited = visited.has(String(node));
+          return [
+            `<circle cx="${p.x}" cy="${p.y}" r="16" fill="${isCurrent ? "#d97706" : isVisited ? "#1f7a55" : "#112443"}" stroke="#6f93cf"/>`,
+            `<text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="12" fill="#f4f8ff">${escapeXml(node)}</text>`
+          ].join("");
+        })
+        .join("")}
+      <text x="260" y="92" font-size="11" fill="#9eb0dc">Queue</text>
+      <rect x="260" y="102" width="160" height="28" rx="6" fill="#112443" stroke="#3d629f"/>
+      <text x="268" y="121" font-size="11" fill="#dce6ff">${escapeXml(queueText || "(empty)")}</text>
+    </svg>
+  `;
+}
+
+function renderDpTableSvg(spec) {
+  const table = Array.isArray(spec?.table) ? spec.table : [["0", "0"], ["0", "0"]];
+  const rows = table.slice(0, 8).map((row) => (Array.isArray(row) ? row.slice(0, 10) : []));
+  const safeRows = rows.length ? rows : [["0", "0"], ["0", "0"]];
+  const cols = safeRows[0].length || 2;
+  const cellW = 32;
+  const cellH = 26;
+  const width = Math.max(360, cols * cellW + 50);
+  const height = Math.max(220, safeRows.length * cellH + 80);
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="DP table diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "DP table replay")}</text>
+      ${safeRows
+        .map((row, r) =>
+          row
+            .map((cell, c) => {
+              const x = 16 + c * cellW;
+              const y = 44 + r * cellH;
+              const active = spec?.row === r && spec?.col === c;
+              return [
+                `<rect x="${x}" y="${y}" width="${cellW - 2}" height="${cellH - 2}" rx="4" fill="${active ? "#2a4e89" : "#112443"}" stroke="#4b6ea8"/>`,
+                `<text x="${x + (cellW - 2) / 2}" y="${y + 17}" text-anchor="middle" font-size="11" fill="#ecf1ff">${escapeXml(cell)}</text>`
+              ].join("");
+            })
+            .join("")
+        )
+        .join("")}
+    </svg>
+  `;
+}
+
+function renderTimelineSvg(step, title, type) {
+  const spec = { ...(step || {}), title };
+  if (type === "linked_list") return renderLinkedListSvg(spec);
+  if (type === "stack_queue") return renderStackQueueSvg(spec);
+  if (type === "graph_bfs") return renderGraphBfsSvg(spec);
+  if (type === "dp_table") return renderDpTableSvg(spec);
+  return renderArrayPointerSvg(spec);
+}
+
+function stopReplay() {
+  if (playTimer) {
+    clearInterval(playTimer);
+    playTimer = null;
+  }
+  diagramPlayEl.textContent = "Play";
+}
+
+function renderTimelineStep() {
+  const steps = currentTimeline?.steps || [];
+  const step = steps[currentStepIndex];
+  if (!step) {
+    return;
+  }
+
+  const type = currentTimeline?.type || "array_pointers";
+  const title = `${currentTimeline.title || "Algorithm replay"} | Step ${currentStepIndex + 1}/${steps.length}`;
+  diagramSvgEl.innerHTML = renderTimelineSvg(step, title, type);
+  const sourceText = currentTimeline?.source === "trace_server" ? "Source: traced Python execution" : "Source: model replay planner";
+  diagramMetaEl.textContent = `${step.note || ""}${currentTimeline.summary ? ` | ${currentTimeline.summary}` : ""} | ${sourceText}`;
+}
+
+function setStepIndex(nextIndex) {
+  const steps = currentTimeline?.steps || [];
+  if (!steps.length) {
+    return;
+  }
+  const clamped = Math.max(0, Math.min(steps.length - 1, nextIndex));
+  currentStepIndex = clamped;
+  renderTimelineStep();
 }
 
 async function getActiveLeetCodeTab() {
@@ -123,10 +375,7 @@ async function sendToCoach(userMessage) {
     unlockCode: unlockCodeEl.checked
   };
 
-  const response = await chrome.runtime.sendMessage({
-    type: "LC_COACH_CHAT",
-    payload
-  });
+  const response = await chrome.runtime.sendMessage({ type: "LC_COACH_CHAT", payload });
 
   if (!response?.ok) {
     throw new Error(response?.error || "Coach request failed.");
@@ -142,14 +391,15 @@ async function sendVisualRequest() {
   }
 
   diagramWrapEl.classList.remove("hidden");
-  diagramMetaEl.textContent = "Generating visual...";
+  diagramMetaEl.textContent = "Generating replay...";
   diagramSvgEl.textContent = "";
+  stopReplay();
 
   const response = await chrome.runtime.sendMessage({
-    type: "LC_COACH_VISUAL",
+    type: "LC_COACH_VISUAL_TIMELINE",
     payload: {
       context: cachedContext,
-      userMessage: userInputEl.value.trim() || "Explain this problem visually."
+      userMessage: userInputEl.value.trim() || "Generate a step-by-step replay for this problem."
     }
   });
 
@@ -157,9 +407,12 @@ async function sendVisualRequest() {
     throw new Error(response?.error || "Visual generation failed.");
   }
 
-  const spec = response.result?.spec || {};
-  diagramSvgEl.innerHTML = renderArrayPointerSvg(spec);
-  diagramMetaEl.textContent = spec.note || "Visual guide ready.";
+  currentTimeline = {
+    ...(response.result?.timeline || {}),
+    source: response.result?.source || "model"
+  };
+  currentStepIndex = 0;
+  renderTimelineStep();
 }
 
 async function loadConfig() {
@@ -170,6 +423,7 @@ async function loadConfig() {
 
   providerEl.value = response.config.provider || "ollama";
   endpointEl.value = response.config.endpoint || "http://127.0.0.1:11434";
+  traceEndpointEl.value = response.config.traceEndpoint || "http://127.0.0.1:8765";
   modelEl.value = response.config.model || "kimi-k2:1t-cloud";
 }
 
@@ -181,6 +435,7 @@ async function saveConfig() {
   const payload = {
     provider: providerEl.value,
     endpoint: endpointEl.value.trim(),
+    traceEndpoint: traceEndpointEl.value.trim(),
     model: modelEl.value.trim()
   };
 
@@ -225,7 +480,7 @@ async function clearData() {
   }
 
   setStateMeta(null);
-  setOutput("Coach data cleared.");
+  setOutput("Wandering_bot data cleared.");
 }
 
 saveConfigEl.addEventListener("click", () => {
@@ -255,6 +510,41 @@ visualizeEl.addEventListener("click", () => {
   sendVisualRequest().catch((error) => setOutput(String(error)));
 });
 
+diagramPrevEl.addEventListener("click", () => {
+  stopReplay();
+  setStepIndex(currentStepIndex - 1);
+});
+
+diagramNextEl.addEventListener("click", () => {
+  stopReplay();
+  setStepIndex(currentStepIndex + 1);
+});
+
+diagramPlayEl.addEventListener("click", () => {
+  const steps = currentTimeline?.steps || [];
+  if (steps.length < 2) {
+    return;
+  }
+
+  if (playTimer) {
+    stopReplay();
+    return;
+  }
+
+  diagramPlayEl.textContent = "Pause";
+  playTimer = setInterval(() => {
+    if (!currentTimeline?.steps?.length) {
+      stopReplay();
+      return;
+    }
+    if (currentStepIndex >= currentTimeline.steps.length - 1) {
+      stopReplay();
+      return;
+    }
+    setStepIndex(currentStepIndex + 1);
+  }, 1200);
+});
+
 document.querySelectorAll("button[data-msg]").forEach((button) => {
   button.addEventListener("click", () => {
     const message = button.getAttribute("data-msg") || "Give me the first hint.";
@@ -262,5 +552,27 @@ document.querySelectorAll("button[data-msg]").forEach((button) => {
   });
 });
 
+
+openTutorialEl.addEventListener("click", () => {
+  openTutorial();
+});
+
+tutorialBackEl.addEventListener("click", () => {
+  prevTutorialStep();
+});
+
+tutorialNextEl.addEventListener("click", () => {
+  nextTutorialStep();
+});
+
+tutorialCloseEl.addEventListener("click", () => {
+  closeTutorial();
+});
+
+tutorialOverlayEl.addEventListener("click", (event) => {
+  if (event.target === tutorialOverlayEl) {
+    closeTutorial();
+  }
+});
 loadConfig().catch(() => {});
 loadPrivacy().catch(() => {});

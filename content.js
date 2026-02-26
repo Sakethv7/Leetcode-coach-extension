@@ -144,6 +144,145 @@ function renderArrayPointerSvg(spec) {
   `;
 }
 
+function renderLinkedListSvg(spec) {
+  const nodes = Array.isArray(spec?.nodes) ? spec.nodes.slice(0, 10) : [1, 2, 3, 4];
+  const width = Math.max(340, nodes.length * 72 + 20);
+  const height = 190;
+  const y = 84;
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Linked list diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Linked list replay")}</text>
+      ${nodes
+        .map((value, i) => {
+          const x = 12 + i * 72;
+          const markers = [spec?.head === i ? "H" : "", spec?.current === i ? "C" : "", spec?.slow === i ? "S" : "", spec?.fast === i ? "F" : ""]
+            .filter(Boolean)
+            .join("/");
+          return [
+            `<rect x="${x}" y="${y}" width="46" height="30" rx="6" fill="#0f1c35" stroke="#3c5c94"/>`,
+            `<text x="${x + 23}" y="${y + 20}" text-anchor="middle" font-size="12" fill="#ecf1ff">${escapeXml(value)}</text>`,
+            i < nodes.length - 1
+              ? `<line x1="${x + 46}" y1="${y + 15}" x2="${x + 64}" y2="${y + 15}" stroke="#6a86bf" stroke-width="2"/><polygon points="${x + 64},${y + 15} ${x + 59},${y + 12} ${x + 59},${y + 18}" fill="#6a86bf"/>`
+              : "",
+            markers ? `<text x="${x + 23}" y="${y - 8}" text-anchor="middle" font-size="10" fill="#fbbf24">${markers}</text>` : ""
+          ].join("");
+        })
+        .join("")}
+    </svg>
+  `;
+}
+
+function renderStackQueueSvg(spec) {
+  const items = Array.isArray(spec?.items) ? spec.items.slice(0, 12) : [1, 2, 3];
+  const mode = spec?.mode === "queue" ? "queue" : "stack";
+  return `
+    <svg viewBox="0 0 360 210" role="img" aria-label="Stack or queue diagram">
+      <rect x="0" y="0" width="360" height="210" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Stack/Queue replay")} (${mode})</text>
+      ${items
+        .map((value, i) => {
+          const x = 14 + i * 28;
+          const active = spec?.active === i;
+          return [
+            `<rect x="${x}" y="82" width="24" height="80" rx="5" fill="${active ? "#2a4e89" : "#10203b"}" stroke="#3f629d"/>`,
+            `<text x="${x + 12}" y="128" text-anchor="middle" font-size="11" fill="#ecf1ff">${escapeXml(value)}</text>`
+          ].join("");
+        })
+        .join("")}
+      <text x="14" y="66" font-size="10" fill="#9eb0dc">${mode === "stack" ? "Top on right" : "Front on left"}</text>
+    </svg>
+  `;
+}
+
+function renderGraphBfsSvg(spec) {
+  const nodes = Array.isArray(spec?.nodes) ? spec.nodes.slice(0, 8) : ["A", "B", "C", "D"];
+  const cx = 120;
+  const cy = 112;
+  const radius = 60;
+  const pos = new Map(
+    nodes.map((node, i) => {
+      const a = (Math.PI * 2 * i) / Math.max(1, nodes.length);
+      return [String(node), { x: cx + radius * Math.cos(a), y: cy + radius * Math.sin(a) }];
+    })
+  );
+  const visited = new Set(Array.isArray(spec?.visited) ? spec.visited.map(String) : []);
+  const edges = Array.isArray(spec?.edges) ? spec.edges : [];
+  const queueText = Array.isArray(spec?.queue) ? spec.queue.join(" -> ") : "";
+
+  return `
+    <svg viewBox="0 0 360 230" role="img" aria-label="Graph BFS diagram">
+      <rect x="0" y="0" width="360" height="230" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "Graph BFS replay")}</text>
+      ${edges
+        .map((edge) => {
+          if (!Array.isArray(edge) || edge.length < 2) return "";
+          const a = pos.get(String(edge[0]));
+          const b = pos.get(String(edge[1]));
+          if (!a || !b) return "";
+          return `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#3e5f98" stroke-width="2"/>`;
+        })
+        .join("")}
+      ${nodes
+        .map((node) => {
+          const p = pos.get(String(node));
+          if (!p) return "";
+          const isCurrent = String(spec?.current || "") === String(node);
+          const isVisited = visited.has(String(node));
+          return [
+            `<circle cx="${p.x}" cy="${p.y}" r="14" fill="${isCurrent ? "#d97706" : isVisited ? "#1f7a55" : "#112443"}" stroke="#6f93cf"/>`,
+            `<text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="11" fill="#f4f8ff">${escapeXml(node)}</text>`
+          ].join("");
+        })
+        .join("")}
+      <text x="220" y="78" font-size="10" fill="#9eb0dc">Queue</text>
+      <rect x="220" y="86" width="128" height="26" rx="6" fill="#112443" stroke="#3d629f"/>
+      <text x="226" y="103" font-size="10" fill="#dce6ff">${escapeXml(queueText || "(empty)")}</text>
+    </svg>
+  `;
+}
+
+function renderDpTableSvg(spec) {
+  const table = Array.isArray(spec?.table) ? spec.table : [["0", "0"], ["0", "0"]];
+  const rows = table.slice(0, 8).map((row) => (Array.isArray(row) ? row.slice(0, 10) : []));
+  const safeRows = rows.length ? rows : [["0", "0"], ["0", "0"]];
+  const cols = safeRows[0].length || 2;
+  const cellW = 30;
+  const cellH = 24;
+  const width = Math.max(340, cols * cellW + 42);
+  const height = Math.max(210, safeRows.length * cellH + 74);
+  return `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="DP table diagram">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#0b1220" rx="8"/>
+      <text x="12" y="20" font-size="13" fill="#dce6ff" font-weight="700">${escapeXml(spec?.title || "DP table replay")}</text>
+      ${safeRows
+        .map((row, r) =>
+          row
+            .map((cell, c) => {
+              const x = 12 + c * cellW;
+              const y = 40 + r * cellH;
+              const active = spec?.row === r && spec?.col === c;
+              return [
+                `<rect x="${x}" y="${y}" width="${cellW - 2}" height="${cellH - 2}" rx="4" fill="${active ? "#2a4e89" : "#112443"}" stroke="#4b6ea8"/>`,
+                `<text x="${x + (cellW - 2) / 2}" y="${y + 16}" text-anchor="middle" font-size="10" fill="#ecf1ff">${escapeXml(cell)}</text>`
+              ].join("");
+            })
+            .join("")
+        )
+        .join("")}
+    </svg>
+  `;
+}
+
+function renderTimelineSvg(step, title, type) {
+  const spec = { ...(step || {}), title };
+  if (type === "linked_list") return renderLinkedListSvg(spec);
+  if (type === "stack_queue") return renderStackQueueSvg(spec);
+  if (type === "graph_bfs") return renderGraphBfsSvg(spec);
+  if (type === "dp_table") return renderDpTableSvg(spec);
+  return renderArrayPointerSvg(spec);
+}
+
 async function getProblemContext() {
   const slugMatch = window.location.pathname.match(/\/problems\/([^/]+)/);
   const slug = slugMatch ? slugMatch[1] : "unknown-problem";
@@ -368,12 +507,56 @@ function createCoachWidget() {
         font-size: 10px;
         padding: 3px 6px;
       }
+      .tutorial-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(10, 16, 30, 0.78);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        z-index: 20;
+      }
+      .tutorial-overlay.hidden {
+        display: none;
+      }
+      .tutorial-card {
+        width: 300px;
+        background: #0f1c35;
+        border: 1px solid #365793;
+        border-radius: 10px;
+        padding: 10px;
+        color: #e9f1ff;
+      }
+      .tutorial-step {
+        font-size: 11px;
+        color: #9eb0dc;
+        margin: 0;
+      }
+      .tutorial-title {
+        margin: 6px 0 0;
+        font-size: 14px;
+      }
+      .tutorial-body {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .tutorial-actions {
+        margin-top: 10px;
+        display: flex;
+        gap: 6px;
+      }
+      .tutorial-actions .icon-btn {
+        flex: 1;
+      }
     </style>
-    <button id="fab" class="fab hidden">LeetCode Coach</button>
+    <button id="fab" class="fab hidden">Wandering_bot</button>
     <div id="panel" class="wrap">
       <div class="head">
-        <div class="title">LeetCode Coach</div>
+        <div class="title">Wandering_bot</div>
         <div class="controls">
+          <button id="tutorialBtn" class="icon-btn" title="Tutorial">?</button>
           <button id="min" class="icon-btn" title="Minimize">-</button>
         </div>
       </div>
@@ -383,14 +566,31 @@ function createCoachWidget() {
           <button data-msg="Give me a small nudge.">Nudge</button>
           <button data-msg="Give me the next hint.">Next hint</button>
           <button data-msg="Check my approach:">Debug idea</button>
-          <button id="visualBtn" class="visual">Visual</button>
+          <button id="visualBtn" class="visual">Replay</button>
         </div>
         <textarea id="input" placeholder="Ask for help or paste your approach..."></textarea>
         <button id="send" class="send">Send</button>
         <div id="output" class="output muted">Ask for a hint to start.</div>
         <div id="diagramWrap" class="diagram-wrap hidden">
+          <div class="quick">
+            <button id="diagramPrev">Prev</button>
+            <button id="diagramPlay">Play</button>
+            <button id="diagramNext">Next</button>
+          </div>
           <div id="diagramSvg"></div>
           <div id="diagramNote" class="diagram-note"></div>
+        </div>
+      </div>
+    </div>
+    <div id="tutorialOverlay" class="tutorial-overlay hidden">
+      <div class="tutorial-card">
+        <p id="tutorialStepMeta" class="tutorial-step">Step 1/1</p>
+        <p id="tutorialTitle" class="tutorial-title">Welcome</p>
+        <p id="tutorialBody" class="tutorial-body"></p>
+        <div class="tutorial-actions">
+          <button id="tutorialBack" class="icon-btn">Back</button>
+          <button id="tutorialNext" class="icon-btn">Next</button>
+          <button id="tutorialClose" class="icon-btn">Close</button>
         </div>
       </div>
     </div>
@@ -410,13 +610,88 @@ function createCoachWidget() {
   const outputEl = shadow.getElementById("output");
   const sendBtn = shadow.getElementById("send");
   const minBtn = shadow.getElementById("min");
+  const tutorialBtn = shadow.getElementById("tutorialBtn");
   const visualBtn = shadow.getElementById("visualBtn");
   const diagramWrapEl = shadow.getElementById("diagramWrap");
   const diagramSvgEl = shadow.getElementById("diagramSvg");
   const diagramNoteEl = shadow.getElementById("diagramNote");
+  const diagramPrevEl = shadow.getElementById("diagramPrev");
+  const diagramPlayEl = shadow.getElementById("diagramPlay");
+  const diagramNextEl = shadow.getElementById("diagramNext");
   const liveTipEl = shadow.getElementById("liveTip");
   const liveTextEl = shadow.getElementById("liveText");
   const liveToggleEl = shadow.getElementById("liveToggle");
+  const tutorialOverlayEl = shadow.getElementById("tutorialOverlay");
+  const tutorialStepMetaEl = shadow.getElementById("tutorialStepMeta");
+  const tutorialTitleEl = shadow.getElementById("tutorialTitle");
+  const tutorialBodyEl = shadow.getElementById("tutorialBody");
+  const tutorialBackEl = shadow.getElementById("tutorialBack");
+  const tutorialNextEl = shadow.getElementById("tutorialNext");
+  const tutorialCloseEl = shadow.getElementById("tutorialClose");
+
+  let currentTimeline = null;
+  let currentStepIndex = 0;
+  let playTimer = null;
+
+  const tutorialSteps = [
+    {
+      title: "Welcome",
+      body: "This walkthrough shows setup, hint flow, and replay controls inside this page widget."
+    },
+    {
+      title: "Capture Context",
+      body: "Wandering_bot auto-reads current problem details and your editor code before giving guidance."
+    },
+    {
+      title: "Hint Controls",
+      body: "Use Nudge, Next hint, or Debug idea for progressive guidance without full spoon-feeding."
+    },
+    {
+      title: "Replay",
+      body: "Click Replay, then step through with Prev/Next/Play to inspect state transitions."
+    },
+    {
+      title: "Live Tips",
+      body: "Live tip monitors code edits and gives short tactical nudges. Use Pause/Resume anytime."
+    }
+  ];
+  let tutorialIndex = 0;
+
+  function renderTutorialStep() {
+    const step = tutorialSteps[tutorialIndex];
+    tutorialStepMetaEl.textContent = "Step " + String(tutorialIndex + 1) + "/" + String(tutorialSteps.length);
+    tutorialTitleEl.textContent = step.title;
+    tutorialBodyEl.textContent = step.body;
+    tutorialBackEl.disabled = tutorialIndex === 0;
+    tutorialNextEl.textContent = tutorialIndex >= tutorialSteps.length - 1 ? "Finish" : "Next";
+  }
+
+  function openTutorial() {
+    tutorialIndex = 0;
+    renderTutorialStep();
+    tutorialOverlayEl.classList.remove("hidden");
+  }
+
+  function closeTutorial() {
+    tutorialOverlayEl.classList.add("hidden");
+  }
+
+  function nextTutorialStep() {
+    if (tutorialIndex >= tutorialSteps.length - 1) {
+      closeTutorial();
+      return;
+    }
+    tutorialIndex += 1;
+    renderTutorialStep();
+  }
+
+  function prevTutorialStep() {
+    if (tutorialIndex <= 0) {
+      return;
+    }
+    tutorialIndex -= 1;
+    renderTutorialStep();
+  }
 
   async function setMetaText() {
     const ctx = await getProblemContext();
@@ -452,17 +727,50 @@ function createCoachWidget() {
     }
   }
 
+  function stopReplay() {
+    if (playTimer) {
+      clearInterval(playTimer);
+      playTimer = null;
+    }
+    diagramPlayEl.textContent = "Play";
+  }
+
+  function renderTimelineStep() {
+    const steps = currentTimeline?.steps || [];
+    const step = steps[currentStepIndex];
+    if (!step) {
+      return;
+    }
+    const type = currentTimeline?.type || "array_pointers";
+    const title = `${currentTimeline.title || "Algorithm replay"} | Step ${currentStepIndex + 1}/${steps.length}`;
+    diagramSvgEl.innerHTML = renderTimelineSvg(step, title, type);
+    const sourceText =
+      currentTimeline?.source === "trace_server" ? "Source: traced Python execution" : "Source: model replay planner";
+    diagramNoteEl.textContent = `${step.note || ""}${currentTimeline.summary ? ` | ${currentTimeline.summary}` : ""} | ${sourceText}`;
+  }
+
+  function setStepIndex(nextIndex) {
+    const steps = currentTimeline?.steps || [];
+    if (!steps.length) {
+      return;
+    }
+    const clamped = Math.max(0, Math.min(steps.length - 1, nextIndex));
+    currentStepIndex = clamped;
+    renderTimelineStep();
+  }
+
   async function sendVisual(message) {
     diagramWrapEl.classList.remove("hidden");
-    diagramNoteEl.textContent = "Generating visual...";
+    diagramNoteEl.textContent = "Generating replay...";
     diagramSvgEl.textContent = "";
+    stopReplay();
 
     try {
       const response = await chrome.runtime.sendMessage({
-        type: "LC_COACH_VISUAL",
+        type: "LC_COACH_VISUAL_TIMELINE",
         payload: {
           context: await getProblemContext(),
-          userMessage: (message || "").trim() || "Explain this problem visually."
+          userMessage: (message || "").trim() || "Generate a step-by-step replay for this problem."
         }
       });
 
@@ -470,9 +778,12 @@ function createCoachWidget() {
         throw new Error(response?.error || "Visual request failed.");
       }
 
-      const spec = response.result?.spec || {};
-      diagramSvgEl.innerHTML = renderArrayPointerSvg(spec);
-      diagramNoteEl.textContent = spec.note || "Visual guide ready.";
+      currentTimeline = {
+        ...(response.result?.timeline || {}),
+        source: response.result?.source || "model"
+      };
+      currentStepIndex = 0;
+      renderTimelineStep();
     } catch (error) {
       diagramNoteEl.textContent = `Visual error: ${String(error)}`;
     }
@@ -552,6 +863,41 @@ function createCoachWidget() {
     sendVisual(inputEl.value);
   });
 
+  diagramPrevEl.addEventListener("click", () => {
+    stopReplay();
+    setStepIndex(currentStepIndex - 1);
+  });
+
+  diagramNextEl.addEventListener("click", () => {
+    stopReplay();
+    setStepIndex(currentStepIndex + 1);
+  });
+
+  diagramPlayEl.addEventListener("click", () => {
+    const steps = currentTimeline?.steps || [];
+    if (steps.length < 2) {
+      return;
+    }
+
+    if (playTimer) {
+      stopReplay();
+      return;
+    }
+
+    diagramPlayEl.textContent = "Pause";
+    playTimer = setInterval(() => {
+      if (!currentTimeline?.steps?.length) {
+        stopReplay();
+        return;
+      }
+      if (currentStepIndex >= currentTimeline.steps.length - 1) {
+        stopReplay();
+        return;
+      }
+      setStepIndex(currentStepIndex + 1);
+    }, 1200);
+  });
+
   inputEl.addEventListener("keydown", (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       sendMessage(inputEl.value);
@@ -585,6 +931,28 @@ function createCoachWidget() {
     }
   });
 
+
+  tutorialBtn.addEventListener("click", () => {
+    openTutorial();
+  });
+
+  tutorialBackEl.addEventListener("click", () => {
+    prevTutorialStep();
+  });
+
+  tutorialNextEl.addEventListener("click", () => {
+    nextTutorialStep();
+  });
+
+  tutorialCloseEl.addEventListener("click", () => {
+    closeTutorial();
+  });
+
+  tutorialOverlayEl.addEventListener("click", (event) => {
+    if (event.target === tutorialOverlayEl) {
+      closeTutorial();
+    }
+  });
   setMetaText();
   liveTipEl.classList.remove("hidden");
 

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "LeetCode Coach",
+  "name": "Wandering_bot",
   "version": "0.1.0",
-  "description": "Interactive LeetCode tutor that guides without spoon-feeding.",
+  "description": "Strategic LeetCode tutor with hint-first coaching and algorithm replay visuals.",
   "permissions": ["activeTab", "storage"],
   "host_permissions": [
     "https://leetcode.com/*",
@@ -11,7 +11,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "LeetCode Coach"
+    "default_title": "Wandering_bot"
   },
   "background": {
     "service_worker": "background.js",

@@ -3,13 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LeetCode Coach</title>
+    <title>Wandering_bot</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <main>
-      <h1>LeetCode Coach</h1>
-      <p class="muted">Interactive tutor mode: hints first, code later only if unlocked.</p>
+      <div class="title-row">
+        <h1>Wandering_bot</h1>
+        <button id="openTutorial" class="ghost-btn">Tutorial</button>
+      </div>
+      <p class="muted">Strategic tutor mode: depth-first hints, then code only if unlocked.</p>
 
       <section class="card">
         <label for="provider">Provider</label>
@@ -24,6 +27,9 @@
         <label for="model">Model</label>
         <input id="model" type="text" placeholder="kimi-k2:1t-cloud" />
 
+        <label for="traceEndpoint">Python Trace Endpoint</label>
+        <input id="traceEndpoint" type="text" placeholder="http://127.0.0.1:8765" />
+
         <button id="saveConfig">Save Config</button>
       </section>
 
@@ -31,7 +37,7 @@
         <h2>Data & Privacy</h2>
         <label class="toggle-row" for="autoExpiryEnabled">
           <input id="autoExpiryEnabled" type="checkbox" />
-          Auto-delete coach data after N days
+          Auto-delete Wandering_bot data after N days
         </label>
 
         <label for="retentionDays">Retention days</label>
@@ -39,7 +45,7 @@
 
         <div class="row">
           <button id="savePrivacy">Save Privacy Settings</button>
-          <button id="clearData" class="danger">Clear All Coach Data</button>
+          <button id="clearData" class="danger">Clear All Wandering_bot Data</button>
         </div>
       </section>
 
@@ -53,7 +59,7 @@
           <button data-msg="Give me a small nudge, not the solution.">Nudge</button>
           <button data-msg="Give me the next hint.">Next Hint</button>
           <button data-msg="I will share my approach; critique it with one correction.">Review My Approach</button>
-          <button id="visualize">Generate Visual</button>
+          <button id="visualize">Generate Replay</button>
         </div>
 
         <textarea id="userInput" rows="4" placeholder="Ask for a hint, share your approach, or ask where you're stuck..."></textarea>
@@ -67,12 +73,30 @@
       </section>
 
       <section class="card output">
-        <h2>Coach</h2>
+        <h2>Wandering_bot</h2>
         <pre id="output">Start by opening a LeetCode problem tab, then click "Capture Problem".</pre>
         <p id="stateMeta" class="muted"></p>
         <div id="diagramWrap" class="diagram-wrap hidden">
           <div id="diagramMeta" class="muted"></div>
+          <div class="row">
+            <button id="diagramPrev">Prev</button>
+            <button id="diagramPlay">Play</button>
+            <button id="diagramNext">Next</button>
+          </div>
           <div id="diagramSvg"></div>
+        </div>
+      </section>
+
+      <section id="tutorialOverlay" class="tutorial-overlay hidden">
+        <div class="tutorial-card">
+          <p id="tutorialStepMeta" class="tutorial-step">Step 1/1</p>
+          <h3 id="tutorialTitle">Welcome</h3>
+          <p id="tutorialBody" class="tutorial-body"></p>
+          <div class="tutorial-actions">
+            <button id="tutorialBack" class="ghost-btn">Back</button>
+            <button id="tutorialNext">Next</button>
+            <button id="tutorialClose" class="danger">Close</button>
+          </div>
         </div>
       </section>
     </main>
