@@ -158,6 +158,26 @@ button:hover {
   padding: 8px;
 }
 
+.diagram-progress {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin: 6px 0 4px;
+  min-height: 9px;
+}
+
+.diagram-progress .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c2cedf;
+  transition: background 0.15s;
+}
+
+.diagram-progress .dot.active {
+  background: #0f4c81;
+}
+
 .diagram-wrap.hidden {
   display: none;
 }

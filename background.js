@@ -191,14 +191,15 @@ function buildVisualTimelineSystemPrompt() {
     "Return ONLY valid JSON with no markdown.",
     'Schema: {"type":"one_of(array_pointers|linked_list|stack_queue|graph_bfs|dp_table)","title":"string","summary":"string","steps":[{"note":"string","...type_specific_fields"}]}',
     "Rules:",
-    "1) type must be exactly one of array_pointers, linked_list, stack_queue, graph_bfs, dp_table.",
+    "1) type must be exactly one of array_pointers, linked_list, stack_queue, graph_bfs, dp_table, binary_tree.",
     "2) steps length must be 3..12 and each step should represent one meaningful algorithm moment.",
     "3) Keep each step note under 120 chars and summary under 180 chars.",
     "4) For array_pointers step fields: array, low, high, mid.",
     "5) For linked_list step fields: nodes, head, current, fast, slow.",
     "6) For stack_queue step fields: mode(stack|queue), items, active.",
     "7) For graph_bfs step fields: nodes, edges, queue, visited, current.",
-    "8) For dp_table step fields: table, row, col."
+    "8) For dp_table step fields: table, row, col.",
+    "9) For binary_tree step fields: nodes (BFS-order array, null for absent slots), current (index), visited ([index,...]), highlight ([index,...])."
   ].join("\n");
 }
 
@@ -278,7 +279,7 @@ function normalizeArray(valuesLike, minLen = 3, maxLen = 12, fallback = [1, 3, 5
 
 function normalizeTimelineType(typeLike) {
   const type = normalizeText(typeLike, 40).trim();
-  if (["array_pointers", "linked_list", "stack_queue", "graph_bfs", "dp_table"].includes(type)) {
+  if (["array_pointers", "linked_list", "stack_queue", "graph_bfs", "dp_table", "binary_tree"].includes(type)) {
     return type;
   }
   return "array_pointers";
@@ -351,6 +352,18 @@ function fallbackTimelineByType(type, title) {
         { table: [[1, 0, 0], [0, 0, 0], [0, 0, 0]], row: 0, col: 0, note: "Seed base case." },
         { table: [[1, 1, 1], [0, 1, 1], [0, 0, 0]], row: 1, col: 1, note: "Fill next row from top/left." },
         { table: [[1, 1, 1], [0, 1, 1], [0, 1, 2]], row: 2, col: 2, note: "Finish with target state." }
+      ]
+    };
+  }
+  if (type === "binary_tree") {
+    return {
+      type,
+      title,
+      summary: "Traverse the tree node by node.",
+      steps: [
+        { nodes: [4, 2, 6, 1, 3, 5, 7], current: 0, visited: [], highlight: [1, 2], note: "Root: compare children." },
+        { nodes: [4, 2, 6, 1, 3, 5, 7], current: 1, visited: [0], highlight: [3, 4], note: "Left subtree: explore." },
+        { nodes: [4, 2, 6, 1, 3, 5, 7], current: 3, visited: [0, 1], highlight: [], note: "Leaf reached." }
       ]
     };
   }
@@ -440,6 +453,25 @@ function normalizeTimelineStepByType(stepLike, type, idx, baseStep) {
       table: safeRows,
       row: normalizeIndex(stepLike?.row ?? baseStep?.row ?? 0, safeRows.length),
       col: normalizeIndex(stepLike?.col ?? baseStep?.col ?? 0, width),
+      note
+    };
+  }
+
+  if (type === "binary_tree") {
+    const nodesRaw = Array.isArray(stepLike?.nodes) ? stepLike.nodes : baseStep?.nodes;
+    const nodes = (Array.isArray(nodesRaw) ? nodesRaw : [1, 2, 3])
+      .slice(0, 15)
+      .map((v) => (v === null || v === undefined ? null : normalizeText(v, 12)));
+    const safeNodes = nodes.length >= 1 ? nodes : [1, 2, 3];
+    const len = safeNodes.length;
+    const safeIdx = (v) => normalizeIndex(v, len);
+    const sanitizeIdxList = (arr) =>
+      (Array.isArray(arr) ? arr : []).map(safeIdx).filter((v) => v !== null);
+    return {
+      nodes: safeNodes,
+      current: safeIdx(stepLike?.current ?? baseStep?.current ?? null),
+      visited: sanitizeIdxList(stepLike?.visited ?? baseStep?.visited),
+      highlight: sanitizeIdxList(stepLike?.highlight ?? baseStep?.highlight),
       note
     };
   }
